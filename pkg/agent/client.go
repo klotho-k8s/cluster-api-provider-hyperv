@@ -94,6 +94,14 @@ func (c *Client) RemoveVM(ctx context.Context, name string) error {
 	return fromStatus(err)
 }
 
+// DeleteVM invokes the single server-side teardown RPC. The controller makes
+// this one call to delete a VM; the agent finishes the stop+destroy even if this
+// connection drops the instant the VM (and the controller riding it) stops.
+func (c *Client) DeleteVM(ctx context.Context, name string) error {
+	_, err := c.rpc.DeleteVM(ctx, &pb.NameRequest{Name: name})
+	return fromStatus(err)
+}
+
 func (c *Client) SetFirmware(ctx context.Context, in hyperv.FirmwareInput) error {
 	_, err := c.rpc.SetFirmware(ctx, &pb.SetFirmwareRequest{
 		Name:             in.Name,

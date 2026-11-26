@@ -177,37 +177,24 @@ func createAndProvision(ctx context.Context, s *Scope, name string) (*hyperv.VM,
 	return vm, nil
 }
 
-// DeleteVM stops then removes the VM. It returns done=true once the VM is gone.
-// Each call makes at most one state transition so the controller can requeue
-// between steps:
-//   - running VM  -> force stop, done=false
-//   - stopped VM  -> remove, done=false
-//   - absent VM   -> done=true
+// DeleteVM tears the VM down in a single call and returns done=true once it is
+// gone. It delegates to the atomic hyperv.Client.DeleteVM, which stops the VM,
+// destroys it, and removes its disk and cidata ISO server-side. This is a
+// deliberate one-shot: in a self-managed cluster the controller runs on the very
+// VM being deleted and dies the instant the agent stops it, so a stop-then-
+// remove sequence spread across reconciles would strand the VM half-deleted. The
+// agent runs on the host and finishes the teardown even after this call's
+// connection drops. DeleteVM is idempotent, so an already-gone VM still reports
+// done=true (the klotho host-side backstop may also have called it).
 func DeleteVM(ctx context.Context, s *Scope) (bool, error) {
 	name := s.VMName()
 	s.HyperVMachine.Status.VMState = infrav1.VirtualMachineStateDeleting
 
-	vm, err := s.Client.GetVM(ctx, name)
-	if errors.Is(err, hyperv.ErrVMNotFound) {
-		return true, nil
+	s.Logger.Info("deleting Hyper-V VM", "vmName", name)
+	if err := s.Client.DeleteVM(ctx, name); err != nil {
+		return false, fmt.Errorf("deleting VM %q: %w", name, err)
 	}
-	if err != nil {
-		return false, fmt.Errorf("looking up VM %q for delete: %w", name, err)
-	}
-
-	if vm.State == hyperv.StateRunning || vm.State == hyperv.StateStarting || vm.State == hyperv.StatePaused {
-		s.Logger.Info("stopping Hyper-V VM for deletion", "vmName", name)
-		if err := s.Client.StopVM(ctx, name, true); err != nil {
-			return false, fmt.Errorf("stopping VM %q: %w", name, err)
-		}
-		return false, nil
-	}
-
-	s.Logger.Info("removing Hyper-V VM", "vmName", name)
-	if err := s.Client.RemoveVM(ctx, name); err != nil {
-		return false, fmt.Errorf("removing VM %q: %w", name, err)
-	}
-	return false, nil
+	return true, nil
 }
 
 // toMachineAddresses converts raw IP strings to Cluster API machine addresses.

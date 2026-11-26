@@ -19,6 +19,16 @@ service HyperVAgent {
   rpc StartVM(NameRequest) returns (Empty);
   rpc StopVM(StopVMRequest) returns (Empty);
   rpc RemoveVM(NameRequest) returns (Empty);
+  // DeleteVM tears a VM down in a single server-side operation: stop (if
+  // running), destroy the VM definition, and remove its boot disk and cidata
+  // ISO. It exists because in a self-managed cluster the controller runs on the
+  // very VM being deleted: the moment the agent stops that VM the controller
+  // dies and this gRPC stream is cancelled, so the controller can never make a
+  // second call. StopVM + RemoveVM in sequence would deadlock there. The agent
+  // runs the teardown to completion on a context detached from this request, so
+  // a client disconnect mid-destroy does not abort it. It is idempotent: an
+  // already-stopped or already-gone VM deletes cleanly.
+  rpc DeleteVM(NameRequest) returns (Empty);
   rpc SetFirmware(SetFirmwareRequest) returns (Empty);
   rpc AttachCloudInit(AttachCloudInitRequest) returns (Empty);
   rpc SetVLAN(SetVLANRequest) returns (Empty);

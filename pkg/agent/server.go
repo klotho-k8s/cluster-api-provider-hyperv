@@ -14,6 +14,7 @@ package agent
 import (
 	"context"
 	"errors"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -21,6 +22,12 @@ import (
 	"github.com/klotho-k8s/cluster-api-provider-hyperv/pkg/hyperv"
 	pb "github.com/klotho-k8s/cluster-api-provider-hyperv/proto/hypervagent/v1"
 )
+
+// deleteTimeout bounds a detached VM teardown. A stop+destroy of a single VM
+// finishes in seconds; this is a generous ceiling so a wedged host operation
+// cannot leak the goroutine forever, while still comfortably outlasting a real
+// teardown.
+const deleteTimeout = 10 * time.Minute
 
 // Server implements pb.HyperVAgentServer by delegating to a hyperv.Client. It
 // runs inside the host agent daemon, where the client is a PowerShellClient.
@@ -81,6 +88,33 @@ func (s *Server) StopVM(ctx context.Context, r *pb.StopVMRequest) (*pb.Empty, er
 
 func (s *Server) RemoveVM(ctx context.Context, r *pb.NameRequest) (*pb.Empty, error) {
 	return &pb.Empty{}, toStatus(s.client.RemoveVM(ctx, r.GetName()))
+}
+
+// DeleteVM runs the atomic VM teardown (stop + destroy + remove disks/ISO) to
+// completion even if the client disconnects mid-request. This matters because
+// the controller that issues this call runs on the very VM being deleted: the
+// instant the agent stops that VM the controller dies and this stream's context
+// is cancelled. We therefore run the teardown on a context DETACHED from the
+// inbound request (context.WithoutCancel, so a client cancel/disconnect does not
+// propagate) with its own timeout, instead of the stream's context. The agent
+// runs on the host, outside the VM, so it can and must finish the destroy.
+//
+// A request already cancelled before any work begins is honored (nothing has
+// been committed yet); once we call into the backend we see it through to the
+// end. The backend is idempotent, so a retried or backstop DeleteVM is safe.
+func (s *Server) DeleteVM(ctx context.Context, r *pb.NameRequest) (*pb.Empty, error) {
+	// Honor a cancellation that arrived before we touched the VM: nothing is
+	// committed yet, so an early client disconnect is legitimate to abort on.
+	if err := ctx.Err(); err != nil {
+		return nil, status.FromContextError(err).Err()
+	}
+	// Detach from the inbound stream context so a disconnect mid-destroy (the
+	// controller dying as its VM stops) cannot abort the teardown. The detached
+	// context keeps the request's values (e.g. for logging) but not its
+	// cancellation, and carries its own deadline.
+	bg, cancel := context.WithTimeout(context.WithoutCancel(ctx), deleteTimeout)
+	defer cancel()
+	return &pb.Empty{}, toStatus(s.client.DeleteVM(bg, r.GetName()))
 }
 
 func (s *Server) SetFirmware(ctx context.Context, r *pb.SetFirmwareRequest) (*pb.Empty, error) {

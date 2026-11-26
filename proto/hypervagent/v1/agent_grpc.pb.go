@@ -31,6 +31,7 @@ const (
 	HyperVAgent_StartVM_FullMethodName         = "/hypervagent.v1.HyperVAgent/StartVM"
 	HyperVAgent_StopVM_FullMethodName          = "/hypervagent.v1.HyperVAgent/StopVM"
 	HyperVAgent_RemoveVM_FullMethodName        = "/hypervagent.v1.HyperVAgent/RemoveVM"
+	HyperVAgent_DeleteVM_FullMethodName        = "/hypervagent.v1.HyperVAgent/DeleteVM"
 	HyperVAgent_SetFirmware_FullMethodName     = "/hypervagent.v1.HyperVAgent/SetFirmware"
 	HyperVAgent_AttachCloudInit_FullMethodName = "/hypervagent.v1.HyperVAgent/AttachCloudInit"
 	HyperVAgent_SetVLAN_FullMethodName         = "/hypervagent.v1.HyperVAgent/SetVLAN"
@@ -52,6 +53,16 @@ type HyperVAgentClient interface {
 	StartVM(ctx context.Context, in *NameRequest, opts ...grpc.CallOption) (*Empty, error)
 	StopVM(ctx context.Context, in *StopVMRequest, opts ...grpc.CallOption) (*Empty, error)
 	RemoveVM(ctx context.Context, in *NameRequest, opts ...grpc.CallOption) (*Empty, error)
+	// DeleteVM tears a VM down in a single server-side operation: stop (if
+	// running), destroy the VM definition, and remove its boot disk and cidata
+	// ISO. It exists because in a self-managed cluster the controller runs on the
+	// very VM being deleted: the moment the agent stops that VM the controller
+	// dies and this gRPC stream is cancelled, so the controller can never make a
+	// second call. StopVM + RemoveVM in sequence would deadlock there. The agent
+	// runs the teardown to completion on a context detached from this request, so
+	// a client disconnect mid-destroy does not abort it. It is idempotent: an
+	// already-stopped or already-gone VM deletes cleanly.
+	DeleteVM(ctx context.Context, in *NameRequest, opts ...grpc.CallOption) (*Empty, error)
 	SetFirmware(ctx context.Context, in *SetFirmwareRequest, opts ...grpc.CallOption) (*Empty, error)
 	AttachCloudInit(ctx context.Context, in *AttachCloudInitRequest, opts ...grpc.CallOption) (*Empty, error)
 	SetVLAN(ctx context.Context, in *SetVLANRequest, opts ...grpc.CallOption) (*Empty, error)
@@ -127,6 +138,16 @@ func (c *hyperVAgentClient) RemoveVM(ctx context.Context, in *NameRequest, opts 
 	return out, nil
 }
 
+func (c *hyperVAgentClient) DeleteVM(ctx context.Context, in *NameRequest, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, HyperVAgent_DeleteVM_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *hyperVAgentClient) SetFirmware(ctx context.Context, in *SetFirmwareRequest, opts ...grpc.CallOption) (*Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(Empty)
@@ -191,6 +212,16 @@ type HyperVAgentServer interface {
 	StartVM(context.Context, *NameRequest) (*Empty, error)
 	StopVM(context.Context, *StopVMRequest) (*Empty, error)
 	RemoveVM(context.Context, *NameRequest) (*Empty, error)
+	// DeleteVM tears a VM down in a single server-side operation: stop (if
+	// running), destroy the VM definition, and remove its boot disk and cidata
+	// ISO. It exists because in a self-managed cluster the controller runs on the
+	// very VM being deleted: the moment the agent stops that VM the controller
+	// dies and this gRPC stream is cancelled, so the controller can never make a
+	// second call. StopVM + RemoveVM in sequence would deadlock there. The agent
+	// runs the teardown to completion on a context detached from this request, so
+	// a client disconnect mid-destroy does not abort it. It is idempotent: an
+	// already-stopped or already-gone VM deletes cleanly.
+	DeleteVM(context.Context, *NameRequest) (*Empty, error)
 	SetFirmware(context.Context, *SetFirmwareRequest) (*Empty, error)
 	AttachCloudInit(context.Context, *AttachCloudInitRequest) (*Empty, error)
 	SetVLAN(context.Context, *SetVLANRequest) (*Empty, error)
@@ -223,6 +254,9 @@ func (UnimplementedHyperVAgentServer) StopVM(context.Context, *StopVMRequest) (*
 }
 func (UnimplementedHyperVAgentServer) RemoveVM(context.Context, *NameRequest) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RemoveVM not implemented")
+}
+func (UnimplementedHyperVAgentServer) DeleteVM(context.Context, *NameRequest) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteVM not implemented")
 }
 func (UnimplementedHyperVAgentServer) SetFirmware(context.Context, *SetFirmwareRequest) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetFirmware not implemented")
@@ -368,6 +402,24 @@ func _HyperVAgent_RemoveVM_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _HyperVAgent_DeleteVM_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NameRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HyperVAgentServer).DeleteVM(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HyperVAgent_DeleteVM_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HyperVAgentServer).DeleteVM(ctx, req.(*NameRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _HyperVAgent_SetFirmware_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SetFirmwareRequest)
 	if err := dec(in); err != nil {
@@ -488,6 +540,10 @@ var HyperVAgent_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RemoveVM",
 			Handler:    _HyperVAgent_RemoveVM_Handler,
+		},
+		{
+			MethodName: "DeleteVM",
+			Handler:    _HyperVAgent_DeleteVM_Handler,
 		},
 		{
 			MethodName: "SetFirmware",
