@@ -5,4 +5,4 @@ resources:
 images:
   - name: controller
     newName: ghcr.io/klotho-k8s/cluster-api-provider-hyperv
-    newTag: v0.1.0
+    newTag: v0.1.1

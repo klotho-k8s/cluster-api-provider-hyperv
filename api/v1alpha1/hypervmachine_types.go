@@ -132,6 +132,8 @@ type HyperVMachineInitializationStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:path=hypervmachines,scope=Namespaced,categories=cluster-api,shortName=hvm
 // +kubebuilder:storageversion
+// +kubebuilder:metadata:labels="cluster.x-k8s.io/v1beta1=v1alpha1"
+// +kubebuilder:metadata:labels="cluster.x-k8s.io/v1beta2=v1alpha1"
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Cluster",type="string",JSONPath=".metadata.labels['cluster\\.x-k8s\\.io/cluster-name']",description="Cluster to which this HyperVMachine belongs"
 // +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.initialization.provisioned",description="Machine ready status"
