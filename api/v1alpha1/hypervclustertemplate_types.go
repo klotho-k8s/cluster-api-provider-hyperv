@@ -37,6 +37,8 @@ type HyperVClusterTemplateSpec struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:path=hypervclustertemplates,scope=Namespaced,categories=cluster-api,shortName=hvct
 // +kubebuilder:storageversion
+// +kubebuilder:metadata:labels="cluster.x-k8s.io/v1beta1=v1alpha1"
+// +kubebuilder:metadata:labels="cluster.x-k8s.io/v1beta2=v1alpha1"
 
 // HyperVClusterTemplate is the Schema for the hypervclustertemplates API.
 type HyperVClusterTemplate struct {
