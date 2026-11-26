@@ -99,9 +99,18 @@ type Client interface {
 	// StopVM powers the VM off (Stop-VM). When force is true the VM is turned
 	// off without a graceful guest shutdown (Stop-VM -TurnOff).
 	StopVM(ctx context.Context, name string, force bool) error
-	// RemoveVM removes the VM definition (Remove-VM -Force). It does not delete
-	// the backing VHDX files.
+	// RemoveVM removes the VM definition (Remove-VM -Force) and the files the
+	// provider created for it (the per-VM boot disk and the cidata ISO).
 	RemoveVM(ctx context.Context, name string) error
+	// DeleteVM is the atomic teardown: it stops the VM if it is running, removes
+	// the VM definition, and removes the VM's boot disk and cidata ISO, all as a
+	// single operation. It is the single call the controller makes on delete so
+	// that no second round-trip is required: in a self-managed cluster the
+	// controller runs on the very VM being deleted and dies the instant it is
+	// stopped, so a stop-then-remove sequence would strand the VM. DeleteVM is
+	// idempotent — deleting an already-stopped or already-absent VM succeeds
+	// cleanly — and only ever touches the VM named in the request.
+	DeleteVM(ctx context.Context, name string) error
 	// SetFirmware sets Generation 2 firmware: it orders the OS disk first and
 	// configures Secure Boot (Set-VMFirmware).
 	SetFirmware(ctx context.Context, in FirmwareInput) error

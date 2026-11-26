@@ -40,6 +40,7 @@ type Client struct {
 	StartCalls         int
 	StopCalls          int
 	RemoveCalls        int
+	DeleteCalls        int
 	FirmwareCfg        int
 	AttachCloudInitCfg int
 	VLANCfg            int
@@ -140,6 +141,26 @@ func (c *Client) RemoveVM(_ context.Context, name string) error {
 		return hyperv.ErrVMNotFound
 	}
 	c.RemoveCalls++
+	delete(c.VMs, name)
+	delete(c.Addresses, name)
+	return nil
+}
+
+// DeleteVM atomically stops (if running) and forgets the VM, along with its
+// recorded addresses. It is idempotent: deleting an absent VM succeeds. When the
+// VM was running it also counts a stop, mirroring the real backends' stop-then-
+// destroy teardown.
+func (c *Client) DeleteVM(_ context.Context, name string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.DeleteCalls++
+	vm, ok := c.VMs[name]
+	if !ok {
+		return nil // already gone; idempotent
+	}
+	if vm.State != hyperv.StateOff {
+		c.StopCalls++
+	}
 	delete(c.VMs, name)
 	delete(c.Addresses, name)
 	return nil

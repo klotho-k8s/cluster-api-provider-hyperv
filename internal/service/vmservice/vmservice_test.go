@@ -140,29 +140,21 @@ func TestReconcileVMCreateError(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestDeleteVMStopThenRemove(t *testing.T) {
+func TestDeleteVMAtomicOneShot(t *testing.T) {
 	fc := fake.New()
 	fc.VMs["node0"] = &hyperv.VM{Name: "node0", ID: "g", State: hyperv.StateRunning, Generation: 2}
 	s := newScope(t, fc)
 
-	// Pass 1: running -> stop, not done.
+	// A running VM is torn down in a SINGLE call: the atomic backend stops and
+	// destroys it server-side, so the controller never needs a second round-trip
+	// (which, on a self-managed cluster, it could not make — it dies with the VM).
 	done, err := DeleteVM(context.Background(), s)
 	require.NoError(t, err)
-	assert.False(t, done)
-	assert.Equal(t, 1, fc.StopCalls)
-	assert.Equal(t, 0, fc.RemoveCalls)
+	assert.True(t, done, "delete completes in one call")
+	assert.Equal(t, 1, fc.DeleteCalls, "exactly one atomic teardown call")
 	assert.Equal(t, infrav1.VirtualMachineStateDeleting, s.HyperVMachine.Status.VMState)
-
-	// Pass 2: stopped -> remove, not done.
-	done, err = DeleteVM(context.Background(), s)
-	require.NoError(t, err)
-	assert.False(t, done)
-	assert.Equal(t, 1, fc.RemoveCalls)
-
-	// Pass 3: gone -> done.
-	done, err = DeleteVM(context.Background(), s)
-	require.NoError(t, err)
-	assert.True(t, done)
+	_, exists := fc.VMs["node0"]
+	assert.False(t, exists, "VM is gone after one delete")
 }
 
 func TestDeleteVMAlreadyGone(t *testing.T) {

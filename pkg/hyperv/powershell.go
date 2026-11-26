@@ -235,6 +235,27 @@ func removeVMScript(name, diskPath, isoPath string) string {
 	return b.String()
 }
 
+// deleteVMScript is the atomic teardown script: it stops the VM (TurnOff, only
+// if it is not already Off), removes the VM definition, and then deletes the
+// per-VM boot disk and the cidata ISO. It is a single server-side script so the
+// controller needs exactly one round-trip to delete a VM. It is idempotent: a
+// missing VM (-ErrorAction SilentlyContinue yields $null) skips straight to the
+// best-effort file cleanup, and an already-Off VM skips the stop. The file
+// removals are best-effort so a VM created without cloud-init, or a disk already
+// gone, does not fail the delete.
+func deleteVMScript(name, diskPath, isoPath string) string {
+	var b strings.Builder
+	b.WriteString(psPreamble)
+	b.WriteString("$vm = Get-VM -Name " + psQuote(name) + " -ErrorAction SilentlyContinue\n")
+	b.WriteString("if ($vm) {\n")
+	b.WriteString("  if ($vm.State -ne 'Off') { Stop-VM -Name " + psQuote(name) + " -TurnOff -Force }\n")
+	b.WriteString("  Remove-VM -Name " + psQuote(name) + " -Force\n")
+	b.WriteString("}\n")
+	b.WriteString("Remove-Item -LiteralPath " + psQuote(diskPath) + " -Force -ErrorAction SilentlyContinue\n")
+	b.WriteString("Remove-Item -LiteralPath " + psQuote(isoPath) + " -Force -ErrorAction SilentlyContinue")
+	return b.String()
+}
+
 func setFirmwareScript(in FirmwareInput) string {
 	var b strings.Builder
 	b.WriteString(psPreamble)
@@ -368,6 +389,14 @@ func (c *PowerShellClient) StopVM(ctx context.Context, name string, force bool) 
 // for it: the per-VM boot disk and the cidata ISO.
 func (c *PowerShellClient) RemoveVM(ctx context.Context, name string) error {
 	_, err := c.runner.run(ctx, removeVMScript(name, c.vmDiskPath(name), c.isoPathFor(name)))
+	return err
+}
+
+// DeleteVM atomically stops (if running), removes the VM definition, and
+// deletes the per-VM boot disk and cidata ISO, in a single PowerShell script.
+// It is idempotent: an already-stopped or already-absent VM deletes cleanly.
+func (c *PowerShellClient) DeleteVM(ctx context.Context, name string) error {
+	_, err := c.runner.run(ctx, deleteVMScript(name, c.vmDiskPath(name), c.isoPathFor(name)))
 	return err
 }
 

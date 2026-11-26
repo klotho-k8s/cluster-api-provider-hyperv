@@ -413,6 +413,51 @@ func (c *WMIClient) RemoveVM(ctx context.Context, name string) error {
 	return nil
 }
 
+// DeleteVM is the atomic teardown: it stops the VM (TurnOff) if it is not
+// already Off, destroys the VM definition (DestroySystem), and then removes the
+// per-VM boot disk and the cidata ISO. The stop and destroy happen inside a
+// single COM session so the whole teardown is one server-side operation,
+// matching the single DeleteVM RPC the controller calls. It is idempotent: an
+// already-absent VM skips straight to the best-effort file cleanup, and an
+// already-Off VM skips the stop. The file removals are best-effort so a VM
+// created without cloud-init, or a disk already gone, does not fail the delete.
+func (c *WMIClient) DeleteVM(ctx context.Context, name string) error {
+	err := withCOM(func() error {
+		vmms, err := c.getService()
+		if err != nil {
+			return err
+		}
+		vm, err := c.lookupVM(vmms, name)
+		if err == ErrVMNotFound {
+			return nil // already gone; still clean up files below
+		}
+		if err != nil {
+			return err
+		}
+		defer vm.Close()
+		st, err := vm.State()
+		if err != nil {
+			return err
+		}
+		if stateFromWMI(st) != StateOff {
+			// TurnOff (force) rather than a graceful shutdown: the guest may
+			// already be dying (it is often the control-plane node running the
+			// controller that issued this call). Stop blocks until the VM is off,
+			// so the subsequent DestroySystem does not race a still-running VM.
+			if err := vm.Stop(true); err != nil {
+				return err
+			}
+		}
+		return vmms.DeleteVirtualMachine(vm)
+	})
+	if err != nil {
+		return err
+	}
+	_ = os.Remove(c.vmDiskPath(name))
+	_ = os.Remove(c.isoPathFor(name))
+	return nil
+}
+
 // SetFirmware configures Generation 2 firmware. Secure Boot is set in WMI (the
 // Linux-critical part: generic cloud images do not boot with the default
 // Microsoft Windows Secure Boot template). The boot-order step is left on

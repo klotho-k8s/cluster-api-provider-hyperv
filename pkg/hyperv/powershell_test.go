@@ -166,6 +166,31 @@ func TestRemoveVMScript(t *testing.T) {
 	assert.Contains(t, s, `Remove-Item -LiteralPath 'C:\data\cidata\node0-cidata.iso' -Force -ErrorAction SilentlyContinue`)
 }
 
+func TestDeleteVMScript(t *testing.T) {
+	s := deleteVMScript("node0", `C:\HyperV\vms\node0.vhdx`, `C:\data\cidata\node0-cidata.iso`)
+	// It is one atomic script: stop only if not already Off, then destroy, then
+	// best-effort remove both files. Guarding the stop on state keeps it
+	// idempotent for an already-stopped VM.
+	assert.Contains(t, s, "Get-VM -Name 'node0' -ErrorAction SilentlyContinue")
+	assert.Contains(t, s, "if ($vm.State -ne 'Off') { Stop-VM -Name 'node0' -TurnOff -Force }")
+	assert.Contains(t, s, "Remove-VM -Name 'node0' -Force")
+	assert.Contains(t, s, `Remove-Item -LiteralPath 'C:\HyperV\vms\node0.vhdx' -Force -ErrorAction SilentlyContinue`)
+	assert.Contains(t, s, `Remove-Item -LiteralPath 'C:\data\cidata\node0-cidata.iso' -Force -ErrorAction SilentlyContinue`)
+}
+
+func TestDeleteVMOneCall(t *testing.T) {
+	// DeleteVM is a single round-trip to the host: one script that does the whole
+	// teardown, so the controller never needs a second call.
+	r := &scriptRunner{}
+	c := &PowerShellClient{runner: r, vmsDir: `C:\HyperV\vms`, isoDir: `C:\data\cidata`}
+	require.NoError(t, c.DeleteVM(context.Background(), "node0"))
+	require.Len(t, r.scripts, 1, "delete must be a single server-side operation")
+	assert.Contains(t, r.scripts[0], "Stop-VM -Name 'node0' -TurnOff -Force")
+	assert.Contains(t, r.scripts[0], "Remove-VM -Name 'node0' -Force")
+	assert.Contains(t, r.scripts[0], `'C:\HyperV\vms\node0.vhdx'`)
+	assert.Contains(t, r.scripts[0], `'C:\data\cidata\node0-cidata.iso'`)
+}
+
 func TestGetNeighborScript(t *testing.T) {
 	s := getNeighborScript("node0")
 	assert.Contains(t, s, "Get-VMNetworkAdapter -VMName 'node0'")

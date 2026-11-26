@@ -824,14 +824,15 @@ const file_hypervagent_v1_agent_proto_rawDesc = "" +
 	"\x13IPAddressesResponse\x12!\n" +
 	"\fip_addresses\x18\x01 \x03(\tR\vipAddresses\"7\n" +
 	"\x0fListVMsResponse\x12$\n" +
-	"\x03vms\x18\x01 \x03(\v2\x12.hypervagent.v1.VMR\x03vms2\x96\x06\n" +
+	"\x03vms\x18\x01 \x03(\v2\x12.hypervagent.v1.VMR\x03vms2\xd6\x06\n" +
 	"\vHyperVAgent\x12G\n" +
 	"\x06Exists\x12\x1d.hypervagent.v1.ExistsRequest\x1a\x1e.hypervagent.v1.ExistsResponse\x12A\n" +
 	"\x05GetVM\x12\x1c.hypervagent.v1.GetVMRequest\x1a\x1a.hypervagent.v1.VMResponse\x12G\n" +
 	"\bCreateVM\x12\x1f.hypervagent.v1.CreateVMRequest\x1a\x1a.hypervagent.v1.VMResponse\x12=\n" +
 	"\aStartVM\x12\x1b.hypervagent.v1.NameRequest\x1a\x15.hypervagent.v1.Empty\x12>\n" +
 	"\x06StopVM\x12\x1d.hypervagent.v1.StopVMRequest\x1a\x15.hypervagent.v1.Empty\x12>\n" +
-	"\bRemoveVM\x12\x1b.hypervagent.v1.NameRequest\x1a\x15.hypervagent.v1.Empty\x12H\n" +
+	"\bRemoveVM\x12\x1b.hypervagent.v1.NameRequest\x1a\x15.hypervagent.v1.Empty\x12>\n" +
+	"\bDeleteVM\x12\x1b.hypervagent.v1.NameRequest\x1a\x15.hypervagent.v1.Empty\x12H\n" +
 	"\vSetFirmware\x12\".hypervagent.v1.SetFirmwareRequest\x1a\x15.hypervagent.v1.Empty\x12P\n" +
 	"\x0fAttachCloudInit\x12&.hypervagent.v1.AttachCloudInitRequest\x1a\x15.hypervagent.v1.Empty\x12@\n" +
 	"\aSetVLAN\x12\x1e.hypervagent.v1.SetVLANRequest\x1a\x15.hypervagent.v1.Empty\x12R\n" +
@@ -876,24 +877,26 @@ var file_hypervagent_v1_agent_proto_depIdxs = []int32{
 	2,  // 5: hypervagent.v1.HyperVAgent.StartVM:input_type -> hypervagent.v1.NameRequest
 	8,  // 6: hypervagent.v1.HyperVAgent.StopVM:input_type -> hypervagent.v1.StopVMRequest
 	2,  // 7: hypervagent.v1.HyperVAgent.RemoveVM:input_type -> hypervagent.v1.NameRequest
-	9,  // 8: hypervagent.v1.HyperVAgent.SetFirmware:input_type -> hypervagent.v1.SetFirmwareRequest
-	10, // 9: hypervagent.v1.HyperVAgent.AttachCloudInit:input_type -> hypervagent.v1.AttachCloudInitRequest
-	11, // 10: hypervagent.v1.HyperVAgent.SetVLAN:input_type -> hypervagent.v1.SetVLANRequest
-	2,  // 11: hypervagent.v1.HyperVAgent.GetIPAddresses:input_type -> hypervagent.v1.NameRequest
-	0,  // 12: hypervagent.v1.HyperVAgent.ListVMs:input_type -> hypervagent.v1.Empty
-	4,  // 13: hypervagent.v1.HyperVAgent.Exists:output_type -> hypervagent.v1.ExistsResponse
-	6,  // 14: hypervagent.v1.HyperVAgent.GetVM:output_type -> hypervagent.v1.VMResponse
-	6,  // 15: hypervagent.v1.HyperVAgent.CreateVM:output_type -> hypervagent.v1.VMResponse
-	0,  // 16: hypervagent.v1.HyperVAgent.StartVM:output_type -> hypervagent.v1.Empty
-	0,  // 17: hypervagent.v1.HyperVAgent.StopVM:output_type -> hypervagent.v1.Empty
-	0,  // 18: hypervagent.v1.HyperVAgent.RemoveVM:output_type -> hypervagent.v1.Empty
-	0,  // 19: hypervagent.v1.HyperVAgent.SetFirmware:output_type -> hypervagent.v1.Empty
-	0,  // 20: hypervagent.v1.HyperVAgent.AttachCloudInit:output_type -> hypervagent.v1.Empty
-	0,  // 21: hypervagent.v1.HyperVAgent.SetVLAN:output_type -> hypervagent.v1.Empty
-	12, // 22: hypervagent.v1.HyperVAgent.GetIPAddresses:output_type -> hypervagent.v1.IPAddressesResponse
-	13, // 23: hypervagent.v1.HyperVAgent.ListVMs:output_type -> hypervagent.v1.ListVMsResponse
-	13, // [13:24] is the sub-list for method output_type
-	2,  // [2:13] is the sub-list for method input_type
+	2,  // 8: hypervagent.v1.HyperVAgent.DeleteVM:input_type -> hypervagent.v1.NameRequest
+	9,  // 9: hypervagent.v1.HyperVAgent.SetFirmware:input_type -> hypervagent.v1.SetFirmwareRequest
+	10, // 10: hypervagent.v1.HyperVAgent.AttachCloudInit:input_type -> hypervagent.v1.AttachCloudInitRequest
+	11, // 11: hypervagent.v1.HyperVAgent.SetVLAN:input_type -> hypervagent.v1.SetVLANRequest
+	2,  // 12: hypervagent.v1.HyperVAgent.GetIPAddresses:input_type -> hypervagent.v1.NameRequest
+	0,  // 13: hypervagent.v1.HyperVAgent.ListVMs:input_type -> hypervagent.v1.Empty
+	4,  // 14: hypervagent.v1.HyperVAgent.Exists:output_type -> hypervagent.v1.ExistsResponse
+	6,  // 15: hypervagent.v1.HyperVAgent.GetVM:output_type -> hypervagent.v1.VMResponse
+	6,  // 16: hypervagent.v1.HyperVAgent.CreateVM:output_type -> hypervagent.v1.VMResponse
+	0,  // 17: hypervagent.v1.HyperVAgent.StartVM:output_type -> hypervagent.v1.Empty
+	0,  // 18: hypervagent.v1.HyperVAgent.StopVM:output_type -> hypervagent.v1.Empty
+	0,  // 19: hypervagent.v1.HyperVAgent.RemoveVM:output_type -> hypervagent.v1.Empty
+	0,  // 20: hypervagent.v1.HyperVAgent.DeleteVM:output_type -> hypervagent.v1.Empty
+	0,  // 21: hypervagent.v1.HyperVAgent.SetFirmware:output_type -> hypervagent.v1.Empty
+	0,  // 22: hypervagent.v1.HyperVAgent.AttachCloudInit:output_type -> hypervagent.v1.Empty
+	0,  // 23: hypervagent.v1.HyperVAgent.SetVLAN:output_type -> hypervagent.v1.Empty
+	12, // 24: hypervagent.v1.HyperVAgent.GetIPAddresses:output_type -> hypervagent.v1.IPAddressesResponse
+	13, // 25: hypervagent.v1.HyperVAgent.ListVMs:output_type -> hypervagent.v1.ListVMsResponse
+	14, // [14:26] is the sub-list for method output_type
+	2,  // [2:14] is the sub-list for method input_type
 	2,  // [2:2] is the sub-list for extension type_name
 	2,  // [2:2] is the sub-list for extension extendee
 	0,  // [0:2] is the sub-list for field type_name
