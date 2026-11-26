@@ -1,0 +1,71 @@
+# Example Cluster API topology for the Hyper-V infrastructure provider.
+#
+# This is a minimal, illustrative template. It shows how the Hyper-V
+# infrastructure objects slot into a Cluster API cluster; the control plane and
+# bootstrap providers (here Kubeadm) are configured as usual. Values in ${...}
+# are substituted by `clusterctl generate cluster`.
+#
+# The control plane endpoint is NOT provisioned by this provider (Hyper-V has no
+# load balancer). Set ${CONTROL_PLANE_ENDPOINT_HOST} to a static VIP (for
+# example a kube-vip address advertised by the control plane) or to the address
+# the first control plane machine will have.
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: HyperVCluster
+metadata:
+  name: ${CLUSTER_NAME}
+  namespace: ${NAMESPACE}
+spec:
+  controlPlaneEndpoint:
+    host: ${CONTROL_PLANE_ENDPOINT_HOST}
+    port: 6443
+---
+apiVersion: cluster.x-k8s.io/v1beta2
+kind: Cluster
+metadata:
+  name: ${CLUSTER_NAME}
+  namespace: ${NAMESPACE}
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+        - 192.168.0.0/16
+  infrastructureRef:
+    apiGroup: infrastructure.cluster.x-k8s.io
+    kind: HyperVCluster
+    name: ${CLUSTER_NAME}
+  controlPlaneRef:
+    apiGroup: controlplane.cluster.x-k8s.io
+    kind: KubeadmControlPlane
+    name: ${CLUSTER_NAME}-control-plane
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: HyperVMachineTemplate
+metadata:
+  name: ${CLUSTER_NAME}-control-plane
+  namespace: ${NAMESPACE}
+spec:
+  template:
+    spec:
+      # Path, on the Hyper-V host, to a cloud-init enabled Linux VHDX.
+      image: ${HYPERV_IMAGE_PATH}
+      switchName: ${HYPERV_SWITCH_NAME}
+      generation: 2
+      cpuCount: 2
+      memoryMiB: 4096
+      enableSecureBoot: false
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: HyperVMachineTemplate
+metadata:
+  name: ${CLUSTER_NAME}-md-0
+  namespace: ${NAMESPACE}
+spec:
+  template:
+    spec:
+      image: ${HYPERV_IMAGE_PATH}
+      switchName: ${HYPERV_SWITCH_NAME}
+      generation: 2
+      cpuCount: 2
+      memoryMiB: 4096
+      enableSecureBoot: false

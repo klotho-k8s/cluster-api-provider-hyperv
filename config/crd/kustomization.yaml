@@ -1,0 +1,9 @@
+# This kustomization aggregates the generated CRDs. New kinds added under
+# config/crd/bases must be listed here.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - bases/infrastructure.cluster.x-k8s.io_hypervclusters.yaml
+  - bases/infrastructure.cluster.x-k8s.io_hypervclustertemplates.yaml
+  - bases/infrastructure.cluster.x-k8s.io_hypervmachines.yaml
+  - bases/infrastructure.cluster.x-k8s.io_hypervmachinetemplates.yaml

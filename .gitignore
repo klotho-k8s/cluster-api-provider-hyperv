@@ -1,0 +1,18 @@
+# Binaries
+/bin/
+/manager
+*.exe
+*.test
+
+# Build / coverage output
+cover.out
+*.out
+
+# Local editor / OS cruft
+.idea/
+.vscode/
+.DS_Store
+
+# clusterctl / kustomize render output
+/out/
+infrastructure-components.yaml

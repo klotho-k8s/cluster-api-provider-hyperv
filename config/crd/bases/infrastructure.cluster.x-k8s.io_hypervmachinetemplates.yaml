@@ -1,0 +1,145 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.19.0
+  name: hypervmachinetemplates.infrastructure.cluster.x-k8s.io
+spec:
+  group: infrastructure.cluster.x-k8s.io
+  names:
+    categories:
+    - cluster-api
+    kind: HyperVMachineTemplate
+    listKind: HyperVMachineTemplateList
+    plural: hypervmachinetemplates
+    shortNames:
+    - hvmt
+    singular: hypervmachinetemplate
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: HyperVMachineTemplate is the Schema for the hypervmachinetemplates
+          API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec is the HyperVMachineTemplate spec.
+            properties:
+              template:
+                description: template is the HyperVMachine template.
+                properties:
+                  metadata:
+                    description: metadata is the standard object metadata for the
+                      templated machine.
+                    type: object
+                  spec:
+                    description: spec is the HyperVMachine spec to stamp out.
+                    properties:
+                      cpuCount:
+                        default: 2
+                        description: cpuCount is the number of virtual processors
+                          assigned to the VM.
+                        format: int32
+                        minimum: 1
+                        type: integer
+                      diskSizeGB:
+                        description: |-
+                          diskSizeGB optionally resizes the copied OS disk to this many gigabytes.
+                          Hyper-V can only grow a VHDX, so the value must be larger than the base
+                          image's virtual size. When unset the disk keeps the base image size.
+                        format: int32
+                        minimum: 1
+                        type: integer
+                      enableSecureBoot:
+                        default: false
+                        description: |-
+                          enableSecureBoot controls UEFI Secure Boot on the Generation 2 VM. Most
+                          Linux cloud images require the Microsoft UEFI CA template, which the
+                          provider selects when Secure Boot is enabled; many images boot more
+                          reliably with it disabled. Defaults to disabled.
+                        type: boolean
+                      generation:
+                        default: 2
+                        description: |-
+                          generation is the Hyper-V VM generation. Only Generation 2 (UEFI/SCSI) is
+                          supported, because the NoCloud cidata ISO is attached to a SCSI DVD drive
+                          and Generation 2 VMs have no IDE controller.
+                        enum:
+                        - 2
+                        format: int32
+                        type: integer
+                      image:
+                        description: |-
+                          image is the path, on the Hyper-V host, to the cloud-init enabled base
+                          VHDX used as the VM's operating system disk. The provider copies this image
+                          for each VM it creates. The file must exist on the host; the provider does
+                          not download or build it.
+                        minLength: 1
+                        type: string
+                      memoryMiB:
+                        default: 2048
+                        description: memoryMiB is the startup memory of the VM, in
+                          MiB.
+                        format: int32
+                        minimum: 512
+                        type: integer
+                      providerID:
+                        description: |-
+                          providerID is the Hyper-V VM identity formatted as hyperv://<vm-guid>,
+                          where <vm-guid> is the Hyper-V virtual machine Id (a GUID) as reported by
+                          Get-VM. It is set by the controller once the VM exists.
+                        type: string
+                      switchName:
+                        description: |-
+                          switchName is the name of the Hyper-V virtual switch to attach the VM's
+                          network adapter to.
+                        minLength: 1
+                        type: string
+                      vlanID:
+                        description: vlanID optionally sets an 802.1Q VLAN access
+                          ID on the VM's network adapter.
+                        format: int32
+                        maximum: 4094
+                        minimum: 1
+                        type: integer
+                      vmName:
+                        description: |-
+                          vmName is the name the VM has (or will have) on the Hyper-V host. When set,
+                          the provider looks up an existing VM by this exact name and adopts it if it
+                          already exists; otherwise it creates one with this name. This is the key to
+                          the "boot node zero out of band, then let the provider adopt it" workflow.
+                          When empty, the provider derives the name from the owning Machine's name.
+                        maxLength: 100
+                        type: string
+                    required:
+                    - image
+                    - switchName
+                    type: object
+                required:
+                - spec
+                type: object
+            required:
+            - template
+            type: object
+        type: object
+    served: true
+    storage: true

@@ -1,0 +1,25 @@
+# Build the manager as a Linux image for in-cluster deployment.
+#
+# This image runs the controller as an ordinary Linux pod in the workload
+# cluster. It never executes PowerShell: it drives Hyper-V through the host
+# agent (hyperv-agent) over gRPC, selected by --hyperv-agent-endpoint /
+# HYPERV_AGENT_ENDPOINT. Use Dockerfile (Windows nanoserver) only for the
+# host-local PowerShell mode.
+FROM golang:1.26 AS builder
+WORKDIR /workspace
+COPY go.mod go.mod
+COPY go.sum go.sum
+RUN go mod download
+COPY api/ api/
+COPY cmd/ cmd/
+COPY internal/ internal/
+COPY pkg/ pkg/
+COPY proto/ proto/
+ENV GOOS=linux GOARCH=amd64 CGO_ENABLED=0
+RUN go build -ldflags="-s -w" -o manager ./cmd
+
+FROM gcr.io/distroless/static:nonroot
+WORKDIR /
+COPY --from=builder /workspace/manager /manager
+USER 65532:65532
+ENTRYPOINT ["/manager"]

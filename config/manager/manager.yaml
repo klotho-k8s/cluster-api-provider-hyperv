@@ -1,0 +1,74 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    control-plane: controller-manager
+    cluster.x-k8s.io/provider: infrastructure-hyperv
+  name: system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-manager
+  namespace: system
+  labels:
+    control-plane: controller-manager
+    cluster.x-k8s.io/provider: infrastructure-hyperv
+spec:
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+      cluster.x-k8s.io/provider: infrastructure-hyperv
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        control-plane: controller-manager
+        cluster.x-k8s.io/provider: infrastructure-hyperv
+    spec:
+      # IMPORTANT: Unlike a typical Cluster API infrastructure provider, this
+      # manager must be able to run the Hyper-V PowerShell cmdlets against a
+      # Windows Hyper-V host. That means it has to run ON a Windows node that is
+      # (or can manage) the Hyper-V host, NOT on an arbitrary Linux control plane
+      # node. The nodeSelector below pins it to a Windows node. For a single-host
+      # lab the common pattern is to run the manager directly on the Hyper-V host
+      # instead of in a pod; this Deployment is provided for host-agent style
+      # deployments where the management cluster itself runs on Windows.
+      nodeSelector:
+        kubernetes.io/os: windows
+      containers:
+        - command:
+            - /manager
+          args:
+            - --leader-elect
+            # Directory on the Hyper-V host where generated cloud-init cidata
+            # ISOs are written before being attached to VMs.
+            - --iso-dir=C:\ProgramData\cluster-api-provider-hyperv\cidata
+          image: controller:latest
+          name: manager
+          env:
+            - name: HYPERV_ISO_DIR
+              value: C:\ProgramData\cluster-api-provider-hyperv\cidata
+          securityContext:
+            allowPrivilegeEscalation: false
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            limits:
+              cpu: 500m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+      serviceAccountName: manager
+      terminationGracePeriodSeconds: 10

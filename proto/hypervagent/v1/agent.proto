@@ -1,0 +1,90 @@
+// Package hypervagent defines the gRPC contract between the Cluster API
+// Hyper-V controller (client) and the Hyper-V host agent (server). The agent
+// runs as a service on the Windows Hyper-V host and performs all Hyper-V work;
+// the controller, running as a Linux pod in the workload cluster, drives it
+// over this API and never executes PowerShell itself.
+syntax = "proto3";
+
+package hypervagent.v1;
+
+option go_package = "github.com/klotho-k8s/cluster-api-provider-hyperv/proto/hypervagent/v1;hypervagentv1";
+
+// HyperVAgent is the VM-lifecycle surface the controller calls on the host
+// agent. It mirrors pkg/hyperv.Client. Every RPC is authenticated with a
+// bearer token (see the agent's auth interceptor) over TLS.
+service HyperVAgent {
+  rpc Exists(ExistsRequest) returns (ExistsResponse);
+  rpc GetVM(GetVMRequest) returns (VMResponse);
+  rpc CreateVM(CreateVMRequest) returns (VMResponse);
+  rpc StartVM(NameRequest) returns (Empty);
+  rpc StopVM(StopVMRequest) returns (Empty);
+  rpc RemoveVM(NameRequest) returns (Empty);
+  rpc SetFirmware(SetFirmwareRequest) returns (Empty);
+  rpc AttachCloudInit(AttachCloudInitRequest) returns (Empty);
+  rpc SetVLAN(SetVLANRequest) returns (Empty);
+  rpc GetIPAddresses(NameRequest) returns (IPAddressesResponse);
+  rpc ListVMs(Empty) returns (ListVMsResponse);
+}
+
+message Empty {}
+
+// VM mirrors pkg/hyperv.VM.
+message VM {
+  string name = 1;
+  string id = 2;
+  string state = 3;
+  int32 generation = 4;
+  string notes = 5;
+  int32 cpu_count = 6;
+  int64 memory_startup_bytes = 7;
+}
+
+message NameRequest { string name = 1; }
+
+message ExistsRequest { string name = 1; }
+message ExistsResponse { bool exists = 1; }
+
+message GetVMRequest { string name = 1; }
+
+// VMResponse carries a VM for GetVM and CreateVM.
+message VMResponse { VM vm = 1; }
+
+// CreateVMRequest mirrors pkg/hyperv.CreateVMInput.
+message CreateVMRequest {
+  string name = 1;
+  int32 generation = 2;
+  int64 memory_startup_bytes = 3;
+  int32 cpu_count = 4;
+  string switch_name = 5;
+  string vhd_path = 6;
+  string notes = 7;
+}
+
+message StopVMRequest {
+  string name = 1;
+  bool force = 2;
+}
+
+// SetFirmwareRequest mirrors pkg/hyperv.FirmwareInput.
+message SetFirmwareRequest {
+  string name = 1;
+  bool enable_secure_boot = 2;
+}
+
+// AttachCloudInitRequest carries the cloud-init user-data for a VM. The agent
+// builds the NoCloud cidata ISO on the host (under its own data dir) from these
+// bytes and attaches it, so no ISO path is shared across the Linux/Windows
+// boundary. The meta-data (instance-id, local-hostname) is derived from name.
+message AttachCloudInitRequest {
+  string name = 1;
+  bytes user_data = 2;
+}
+
+message SetVLANRequest {
+  string name = 1;
+  int32 vlan_id = 2;
+}
+
+message IPAddressesResponse { repeated string ip_addresses = 1; }
+
+message ListVMsResponse { repeated VM vms = 1; }

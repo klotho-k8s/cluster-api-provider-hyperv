@@ -1,0 +1,108 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.19.0
+  name: hypervclustertemplates.infrastructure.cluster.x-k8s.io
+spec:
+  group: infrastructure.cluster.x-k8s.io
+  names:
+    categories:
+    - cluster-api
+    kind: HyperVClusterTemplate
+    listKind: HyperVClusterTemplateList
+    plural: hypervclustertemplates
+    shortNames:
+    - hvct
+    singular: hypervclustertemplate
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: HyperVClusterTemplate is the Schema for the hypervclustertemplates
+          API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec is the HyperVClusterTemplate spec.
+            properties:
+              template:
+                description: template is the HyperVCluster template.
+                properties:
+                  metadata:
+                    description: metadata is the standard object metadata for the
+                      templated cluster.
+                    type: object
+                  spec:
+                    description: spec is the HyperVCluster spec to stamp out.
+                    properties:
+                      controlPlaneEndpoint:
+                        description: |-
+                          controlPlaneEndpoint represents the endpoint used to communicate with the
+                          control plane.
+
+                          Hyper-V has no load balancer. For v1 the endpoint is either a user-provided
+                          static virtual IP (for example a kube-vip VIP hosted inside the control
+                          plane) or the address of the first control plane machine. The provider does
+                          not provision a load balancer; it only validates and stores the endpoint.
+                        minProperties: 1
+                        properties:
+                          host:
+                            description: host is the hostname or IP address on which
+                              the API server is serving.
+                            maxLength: 512
+                            minLength: 1
+                            type: string
+                          port:
+                            description: port is the port on which the API server
+                              is serving.
+                            format: int32
+                            maximum: 65535
+                            minimum: 1
+                            type: integer
+                        type: object
+                      failureDomains:
+                        description: |-
+                          failureDomains is an optional list of failure domain names that machines
+                          may be placed into. Hyper-V failure domains are purely informational in
+                          this provider (for example to spread machines across multiple hosts managed
+                          out of band); the provider does not enforce placement.
+                        items:
+                          type: string
+                        type: array
+                        x-kubernetes-list-type: set
+                      server:
+                        description: |-
+                          server is the address of the Hyper-V host that the controller manages VMs
+                          on. It is informational for single-host deployments where the controller
+                          runs on (or next to) the Hyper-V host; it does not change where PowerShell
+                          cmdlets are executed.
+                        type: string
+                    type: object
+                required:
+                - spec
+                type: object
+            required:
+            - template
+            type: object
+        type: object
+    served: true
+    storage: true
