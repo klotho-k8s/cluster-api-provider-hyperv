@@ -98,7 +98,7 @@ func main() {
 
 	// The production Hyper-V backend shells out to powershell.exe. On a non-
 	// Windows host this still builds; it only fails at the point cmdlets run.
-	hyperVClient, err := newHyperVClient(agentEndpoint, agentCA, os.Getenv("HYPERV_AGENT_TOKEN"), agentInsecure, isoDir)
+	hyperVClient, err := newHyperVClient(agentEndpoint, agentCA, os.Getenv("HYPERV_AGENT_CA"), os.Getenv("HYPERV_AGENT_TOKEN"), agentInsecure, isoDir)
 	if err != nil {
 		setupLog.Error(err, "unable to build the Hyper-V client")
 		os.Exit(1)
