@@ -26,29 +26,35 @@ spec:
         control-plane: controller-manager
         cluster.x-k8s.io/provider: infrastructure-hyperv
     spec:
-      # IMPORTANT: Unlike a typical Cluster API infrastructure provider, this
-      # manager must be able to run the Hyper-V PowerShell cmdlets against a
-      # Windows Hyper-V host. That means it has to run ON a Windows node that is
-      # (or can manage) the Hyper-V host, NOT on an arbitrary Linux control plane
-      # node. The nodeSelector below pins it to a Windows node. For a single-host
-      # lab the common pattern is to run the manager directly on the Hyper-V host
-      # instead of in a pod; this Deployment is provided for host-agent style
-      # deployments where the management cluster itself runs on Windows.
-      nodeSelector:
-        kubernetes.io/os: windows
+      # This manager drives Hyper-V through a host agent (hyperv-agent) reached
+      # over gRPC, so it runs as an ordinary Linux pod on the management cluster
+      # and executes no PowerShell itself. The agent connection is configured
+      # through the three HYPERV_AGENT_* variables below, which klotho populates
+      # from the provider configSecret; left empty (the defaults) the manager
+      # would fall back to driving local PowerShell, which only works when it is
+      # instead run directly on the Windows Hyper-V host.
       containers:
         - command:
             - /manager
           args:
             - --leader-elect
-            # Directory on the Hyper-V host where generated cloud-init cidata
-            # ISOs are written before being attached to VMs.
-            - --iso-dir=C:\ProgramData\cluster-api-provider-hyperv\cidata
           image: controller:latest
           name: manager
           env:
-            - name: HYPERV_ISO_DIR
-              value: C:\ProgramData\cluster-api-provider-hyperv\cidata
+            # gRPC endpoint (host:port) of the hyperv-agent on the Windows host.
+            # When set, the manager drives Hyper-V through the agent instead of
+            # local PowerShell.
+            - name: HYPERV_AGENT_ENDPOINT
+              value: "${HYPERV_AGENT_ENDPOINT:=}"
+            # Bearer token presented on every agent RPC (shared with the agent).
+            - name: HYPERV_AGENT_TOKEN
+              value: "${HYPERV_AGENT_TOKEN:=}"
+            # The agent's CA as a base64-encoded PEM. It is base64 so the
+            # operator's ${VAR} substitution, which would mangle a multi-line
+            # PEM, carries it intact; the manager decodes it in memory. Empty
+            # means trust the host's system roots.
+            - name: HYPERV_AGENT_CA
+              value: "${HYPERV_AGENT_CA:=}"
           securityContext:
             allowPrivilegeEscalation: false
           livenessProbe:

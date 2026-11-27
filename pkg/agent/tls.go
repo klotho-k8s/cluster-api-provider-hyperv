@@ -54,6 +54,23 @@ func ClientTLS(caFile, serverNameOverride string) (grpc.DialOption, error) {
 	return grpc.WithTransportCredentials(creds), nil
 }
 
+// ClientTLSFromPEM returns a DialOption trusting the CA certificate(s) in
+// caPEM. It is the in-memory counterpart of ClientTLS: the controller runs as a
+// Linux pod and receives the agent CA inline (klotho hands it through the
+// provider configSecret as the HYPERV_AGENT_CA variable), so there is no file
+// to point NewClientTLSFromFile at.
+func ClientTLSFromPEM(caPEM []byte, serverNameOverride string) (grpc.DialOption, error) {
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(caPEM) {
+		return nil, fmt.Errorf("agent: no CA certificate found in the provided PEM")
+	}
+	return grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
+		MinVersion: tls.VersionTLS12,
+		RootCAs:    pool,
+		ServerName: serverNameOverride,
+	})), nil
+}
+
 // GenerateSelfSigned creates a self-signed ECDSA certificate valid for the
 // given DNS names and IP addresses, for first-run bootstrapping of the agent.
 // The returned PEM blocks are the certificate and its private key.

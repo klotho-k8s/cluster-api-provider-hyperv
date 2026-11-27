@@ -192,6 +192,23 @@ func TestClientTLSEmptyCAUsesSystemRoots(t *testing.T) {
 	}
 }
 
+// TestClientTLSFromPEM guards the #4 inline-CA contract: the controller
+// receives the agent CA as PEM bytes (base64-decoded from HYPERV_AGENT_CA) and
+// must build trust from them without a file. Valid PEM succeeds; bytes with no
+// certificate are rejected rather than silently trusting nothing.
+func TestClientTLSFromPEM(t *testing.T) {
+	certPEM, _, err := GenerateSelfSigned([]string{"127.0.0.1"}, 24*time.Hour)
+	if err != nil {
+		t.Fatalf("GenerateSelfSigned: %v", err)
+	}
+	if _, err := ClientTLSFromPEM(certPEM, ""); err != nil {
+		t.Fatalf("ClientTLSFromPEM with a valid CA PEM must succeed, got %v", err)
+	}
+	if _, err := ClientTLSFromPEM([]byte("not a pem"), ""); err == nil {
+		t.Fatalf("ClientTLSFromPEM with no certificate must fail")
+	}
+}
+
 // TestTLSRoundTripByHostname is the end-to-end guard for H2/H3: a self-signed
 // cert generated for the wildcard-bind SAN set (hostname + loopback) must let a
 // controller dial the agent BY NAME over real TLS, trusting the cert as CA, and
